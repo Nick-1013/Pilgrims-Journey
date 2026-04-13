@@ -22,6 +22,8 @@ public class PlayerMovement : MonoBehaviour
     private Vector2 lastNonZeroInput;
     private bool wasMoving;
 
+
+    public LayerMask obstacles;
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -141,8 +143,7 @@ public class PlayerMovement : MonoBehaviour
     {
         // When jumping, we reset the vertical velocity before applying force
         // This ensures the second jump always has the same force, regardless of gravity
-        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0);
-        rb.AddForce(new Vector2(0, jumpForce), ForceMode2D.Impulse);
+        GetComponent<BoxCollider2D>().excludeLayers = obstacles;
 
         availableJumps--; // Decrease the number of available jumps
     }

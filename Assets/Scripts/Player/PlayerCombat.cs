@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class PlayerCombat : MonoBehaviour
 {
@@ -7,7 +8,7 @@ public class PlayerCombat : MonoBehaviour
     public float attackRange = 2.5f; // Radius of attack hit detection
     public int attackDamage = 1; // Damage dealt per attack
     public Transform attackPoint;
-    private Animator animator; // Reference to Animator for animations
+    public Animator animator; // Reference to Animator for animations
 
     public LayerMask enemyLayer; // Layer mask to specify which layers are considered enemies for attack detection
 
@@ -34,21 +35,28 @@ public class PlayerCombat : MonoBehaviour
             Debug.Log("Hit object: " + col.name);
 
             hits[0].GetComponent<Health>().TakeDamage(attackDamage);
+        }
+    }
 
-
-            /*
-            // Only apply damage if enemy was found
-            if (health != null && !health.isPlayer)
-            {
-                Debug.Log("Applying damage to: " + health.gameObject.name);
-                health.TakeDamage(attackDamage);
-            }
-            */
+    private void Update()
+    {
+        // -------- ATTACK INPUT --------
+        // Check for mouse click (left click)
+        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
+        {
+            AttackAnimation(); // Trigger attack
         }
     }
     void AttackAnimation()
     {
         if (animator != null)
-            animator.SetTrigger("IsAttacking"); // Trigger attack animation
+            animator.SetBool("IsAttacking", true); // Trigger attack animation (now uses "isAttacking")
+    }
+
+    // Called by an Animation Event at the end of the attack animation
+    public void StopAttackAnimation()
+    {
+        if (animator != null)
+            animator.SetBool("IsAttacking", false); // Turn off isAttacking so animation returns to idle
     }
 }

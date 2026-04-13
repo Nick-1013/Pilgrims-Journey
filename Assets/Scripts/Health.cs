@@ -64,29 +64,22 @@ public class Health : MonoBehaviour
         if (invulTimer > 0)
         {
             invulTimer -= Time.deltaTime; // Decrease timer over time
-
-            FlashEffect(); // Apply flashing effect
         }
         else
         {
             ResetVisual(); // Restore normal appearance
+
+            // Reset player's IsHit bool when invulnerability ends
+            if (isPlayer && animator != null)
+            {
+                animator.SetBool("IsHit", false);
+            }
         }
     }
 
     // ---------------- VISUAL EFFECTS ----------------
 
-    void FlashEffect()
-    {
-        if (spriteRenderer == null) return; // Safety check
 
-        Color color = spriteRenderer.color; // Get current sprite color
-
-        // Creates a pulsing transparency effect
-        float alpha = Mathf.PingPong(Time.time * 5f, 1f);
-
-        color.a = alpha; // Apply changing alpha
-        spriteRenderer.color = color; // Set updated color
-    }
 
     void ResetVisual()
     {
@@ -119,6 +112,12 @@ public class Health : MonoBehaviour
         if (!isPlayer && animator != null)
         {
             animator.SetTrigger("IsHurt");
+        }
+
+        // Set player's IsHit bool so Animator transitions can respond
+        if (isPlayer && animator != null)
+        {
+            animator.SetBool("IsHit", true);
         }
 
         // Update UI ONLY if this is the player
