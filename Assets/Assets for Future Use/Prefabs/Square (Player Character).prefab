@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 3774629231913789301}
   - component: {fileID: 2835147716222450641}
   - component: {fileID: 4188212529799553122}
+  - component: {fileID: 6138112724376681620}
   - component: {fileID: 8505306348075645548}
   - component: {fileID: 4079451985287405942}
   - component: {fileID: 1754123041981181273}
@@ -112,6 +113,24 @@ MonoBehaviour:
   jumpForce: 10
   maxJumps: 2
   groundPoundForce: 25
+--- !u!114 &6138112724376681620
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7461336084841222691}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11866783cc92e9f45848f887dea6b634, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Health
+  maxHealth: 100
+  currentHealth: 0
+  isPlayer: 1
+  healthUI: {fileID: 0}
+  spriteRenderer: {fileID: 0}
+  invulnerabilityTime: 0.5
 --- !u!50 &8505306348075645548
 Rigidbody2D:
   serializedVersion: 5
