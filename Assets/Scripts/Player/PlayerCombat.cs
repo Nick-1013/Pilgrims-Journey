@@ -12,6 +12,9 @@ public class PlayerCombat : MonoBehaviour
 
     public LayerMask enemyLayer; // Layer mask to specify which layers are considered enemies for attack detection
 
+    // ---------------- SHIELD ----------------
+    // Public flag other scripts (like Health) can check
+    public bool IsShielded = false;
 
     // ---------------- ATTACK SYSTEM ----------------
     void Attack() // FIXED: removed unnecessary parameter
@@ -44,13 +47,19 @@ public class PlayerCombat : MonoBehaviour
         // Check for mouse click (left click)
         if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
         {
-            AttackAnimation(); // Trigger attack
+            // If shielding, ignore attack input
+            if (!IsShielded)
+                AttackAnimation(); // Trigger attack
         }
+
+        // -------- SHIELD INPUT (right mouse) --------
+        HandleShieldInput();
     }
+
     void AttackAnimation()
     {
         if (animator != null)
-            animator.SetBool("IsAttacking", true); // Trigger attack animation (now uses "isAttacking")
+            animator.SetBool("IsAttacking", true); // Trigger attack animation (now uses "IsAttacking")
     }
 
     // Called by an Animation Event at the end of the attack animation
@@ -58,5 +67,35 @@ public class PlayerCombat : MonoBehaviour
     {
         if (animator != null)
             animator.SetBool("IsAttacking", false); // Turn off isAttacking so animation returns to idle
+    }
+
+    // Toggle shield on right-click (wasPressedThisFrame)
+    private void HandleShieldInput()
+    {
+        if (Mouse.current == null) return;
+
+        if (Mouse.current.rightButton.wasPressedThisFrame)
+        {
+            if (!IsShielded)
+                StartShield();
+            else
+                StopShield();
+        }
+    }
+
+    private void StartShield()
+    {
+        IsShielded = true;
+        if (animator != null)
+            animator.SetBool("IsShielded", true); // Trigger shield animation
+        Debug.Log("[Player] Shield ON");
+    }
+
+    private void StopShield()
+    {
+        IsShielded = false;
+        if (animator != null)
+            animator.SetBool("IsShielded", false); // Turn off shield animation so player returns to idle
+        Debug.Log("[Player] Shield OFF");
     }
 }

@@ -15,6 +15,7 @@ public class Health : MonoBehaviour
 
     private Enemy enemy; // Reference to Enemy script (used if this is an enemy)
     private PlayerMovement player; // Reference to Player script (used if this is the player)
+    private PlayerCombat playerCombat; // Reference to PlayerCombat (for shield checking)
 
     [SerializeField] private ImageController healthUI; // Reference to UI health display (for player)
 
@@ -47,6 +48,9 @@ public class Health : MonoBehaviour
         // Get BOTH components safely (instead of depending on isPlayer logic)
         enemy = GetComponent<Enemy>(); // Will be null if not an enemy
         player = GetComponent<PlayerMovement>(); // Will be null if not player
+
+        // Get PlayerCombat so we can check shield state when this is the player
+        playerCombat = GetComponent<PlayerCombat>();
     }
 
     // ---------------- UPDATE LOOP ----------------
@@ -64,6 +68,8 @@ public class Health : MonoBehaviour
         if (invulTimer > 0)
         {
             invulTimer -= Time.deltaTime; // Decrease timer over time
+
+            FlashEffect(); // Apply flashing effect
         }
         else
         {
@@ -79,7 +85,18 @@ public class Health : MonoBehaviour
 
     // ---------------- VISUAL EFFECTS ----------------
 
+    void FlashEffect()
+    {
+        if (spriteRenderer == null) return; // Safety check
 
+        Color color = spriteRenderer.color; // Get current sprite color
+
+        // Creates a pulsing transparency effect
+        float alpha = Mathf.PingPong(Time.time * 5f, 1f);
+
+        color.a = alpha; // Apply changing alpha
+        spriteRenderer.color = color; // Set updated color
+    }
 
     void ResetVisual()
     {
@@ -100,6 +117,13 @@ public class Health : MonoBehaviour
 
         // Ignore damage if currently invulnerable or already dead
         if (invulTimer > 0 || isDead) return;
+
+        // If this is the player and PlayerCombat reports shield active, block damage
+        if (isPlayer && playerCombat != null && playerCombat.IsShielded)
+        {
+            Debug.Log("[Player] Damage blocked by shield");
+            return;
+        }
 
         currentHealth -= amount; // Subtract damage from health
 
