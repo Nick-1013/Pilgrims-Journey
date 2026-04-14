@@ -172,7 +172,7 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
 
         // Trigger movement animation
         if (animator != null)
-            animator.SetBool("IsMoving", true);
+            animator.SetBool("IsRunning", true);
     }
 
     // ---------------- STOP MOVEMENT ----------------
@@ -181,7 +181,7 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
         rb.linearVelocity = new Vector2(0, rb.linearVelocity.y); // Stop horizontal velocity
 
         if (animator != null)
-            animator.SetBool("IsMoving", false); // Stop movement animation
+            animator.SetBool("IsRunning", false); // Stop movement animation
     }
 
     // ---------------- ATTACK ----------------
@@ -193,7 +193,7 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
         if (distance > attackRange) return;
 
         if (animator != null)
-            animator.SetTrigger("Attack");
+            animator.SetTrigger("IsAttacking");
 
         if (playerHealth != null && playerHealth.gameObject != gameObject) // Prevent self-damage
         {
@@ -207,7 +207,7 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
     {
         if (animator == null) return; // Safety check
 
-        animator.SetBool("IsMoving", currentState == EnemyState.Chase); // True when chasing
+        animator.SetBool("IsRunning", currentState == EnemyState.Chase); // True when chasing
         animator.SetBool("IsIdle", currentState == EnemyState.Idle); // True when idle
     }
 

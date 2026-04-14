@@ -56,14 +56,14 @@ public class PlayerMovement : MonoBehaviour
             animator.SetFloat("InputX", moveDirection.x);
             animator.SetFloat("InputY", moveDirection.y);
 
-            bool isMoving = moveDirection.magnitude >= 0.1f;
+            bool IsRunning = moveDirection.magnitude >= 0.1f;
 
-            if (isMoving && !wasMoving)
+            if (IsRunning && !wasMoving)
             {
                 // started moving
                 animator.SetBool("IsRunning", true);
             }
-            else if (!isMoving && wasMoving)
+            else if (!IsRunning && wasMoving)
             {
                 // stopped moving
                 animator.SetBool("IsRunning", false);
@@ -71,10 +71,10 @@ public class PlayerMovement : MonoBehaviour
                 animator.SetFloat("LastInputY", lastNonZeroInput.y);
             }
 
-            if (isMoving)
+            if (IsRunning)
                 lastNonZeroInput = moveDirection;
 
-            wasMoving = isMoving;
+            wasMoving = IsRunning;
         }
         // ---------------------------------------------------
 
