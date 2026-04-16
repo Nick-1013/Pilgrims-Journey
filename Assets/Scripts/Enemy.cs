@@ -1,4 +1,6 @@
-using UnityEngine; // Provides access to Unity engine core functionality
+using System.Collections;
+using UnityEngine;
+using UnityEngine.Rendering; // Provides access to Unity engine core functionality
 
 public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy GameObject
 {
@@ -29,6 +31,12 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
     private Animator animator; // Animator for handling animations
     private GameManagerScript gameManager; // Reference to game manager
     private Health playerHealth; // Reference to player's health script
+
+    // ---------------- HIT/ANIMATION ----------------
+    [Header("Hit / Animation")]
+    [Tooltip("How long the Animator 'IsHit' bool stays true after taking damage.")]
+    public float hitBoolDuration = 0.5f;
+    private Coroutine hitResetCoroutine;
 
     // ---------------- INTERNAL STATE ----------------
     private EnemyState currentState; // Current AI state
@@ -73,6 +81,19 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
         if (isDead || player == null) return; // Stop logic if dead or no player
 
         float distance = Vector2.Distance(transform.position, player.position); // Calculate distance to player
+
+        // If Animator exposes an "IsIdle" bool and it is true, respect that and force Idle state
+        if (animator != null && HasAnimatorParameter("IsIdle") && animator.GetBool("IsIdle"))
+        {
+            if (currentState != EnemyState.Idle)
+            {
+                currentState = EnemyState.Idle;
+            }
+
+            HandleAttackTimer(distance); // still update attack timer logic (safe)
+            UpdateAnimations();
+            return; // animator-driven idle takes precedence over AI distance checks
+        }
 
         // -------- STATE MANAGEMENT --------
         if (distance <= attackRange) // If player is in attack range
@@ -152,23 +173,31 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
     void ChasePlayer()
     {
         float deltaX = player.position.x - transform.position.x; // Horizontal distance to player
-        float direction = 0f; // Movement direction (-1 or 1)
+        float deltaY = player.position.y - transform.position.y; // Vertical distance to player (not used for movement, but could be for future vertical logic)
+
+        float directionX = 0f; // Movement direction (-1 or 1)
+        float directionY = 0f; // Vertical direction (not used currently)
 
         float flipThreshold = 0.2f; // Prevents jitter when very close
 
         if (Mathf.Abs(deltaX) > flipThreshold) // Only move if beyond threshold
         {
-            direction = Mathf.Sign(deltaX); // Determine direction (-1 or 1)
+            directionX = Mathf.Sign(deltaX); // Determine direction (-1 or 1)
+        }
+        if(Mathf.Abs(deltaY) > flipThreshold) // Vertical logic placeholder
+        {
+            directionY = Mathf.Sign(deltaY); // Determine vertical direction (not used currently)
         }
 
         // Move enemy manually toward player
-        transform.position += new Vector3(direction * moveSpeed * Time.fixedDeltaTime, 0, 0);
+        transform.position += new Vector3(directionX * moveSpeed * Time.fixedDeltaTime, directionY * moveSpeed * Time.fixedDeltaTime, 0);
 
         // Flip sprite to face movement direction
-        if (direction != 0)
+        if (directionX != 0)
         {
-            transform.localScale = new Vector3(direction, 1, 1);
+            transform.localScale = new Vector3(directionX, 1, 1);
         }
+        if (directionY != 0)
 
         // Trigger movement animation
         if (animator != null)
@@ -220,6 +249,32 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
         }
     }
 
+    // ---------------- HIT ACKNOWLEDGEMENT ----------------
+    // Call this when the enemy takes damage so the Animator gets the IsHit bool set.
+    public void AcknowledgeHit()
+    {
+        if (animator == null) return;
+        if (!HasAnimatorParameter("IsHit")) return;
+
+        animator.SetBool("IsHit", true);
+
+        // Restart reset coroutine
+        if (hitResetCoroutine != null)
+            StopCoroutine(hitResetCoroutine);
+
+        hitResetCoroutine = StartCoroutine(ResetHitCoroutine());
+    }
+
+    IEnumerator ResetHitCoroutine()
+    {
+        yield return new WaitForSeconds(hitBoolDuration);
+
+        if (animator != null && HasAnimatorParameter("IsHit"))
+            animator.SetBool("IsHit", false);
+
+        hitResetCoroutine = null;
+    }
+
     // ---------------- DEATH ----------------
     public void Die()
     {
@@ -236,5 +291,18 @@ public class Enemy : MonoBehaviour // Enemy behavior script attached to enemy Ga
         //    gameManager.EnemyKilled(); // Notify GameManager
 
         Destroy(gameObject, 1.5f); // Destroy enemy after delay
+    }
+
+    // ---------------- HELPERS ----------------
+    // Safely check if Animator contains a parameter with the given name
+    bool HasAnimatorParameter(string paramName)
+    {
+        if (animator == null) return false;
+        var parameters = animator.parameters;
+        for (int i = 0; i < parameters.Length; i++)
+        {
+            if (parameters[i].name == paramName) return true;
+        }
+        return false;
     }
 }

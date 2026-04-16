@@ -17,10 +17,13 @@ public class PlayerMovement : MonoBehaviour
     private int availableJumps; // Private variable to track jumps remaining
     private bool isGroundPounding;
     private Animator animator; // Reference to the Animator component
+    bool IsRunning = false;
 
     // Animator movement tracking
     private Vector2 lastNonZeroInput;
     private bool wasMoving;
+    Gamepad currentGamepad;
+    private PlayerCombat playerCombat; // Reference to PlayerCombat (for shield checking)
 
 
     public LayerMask obstacles;
@@ -29,79 +32,32 @@ public class PlayerMovement : MonoBehaviour
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>(); // Get the Animator component
         availableJumps = maxJumps; // Initialize available jumps on start
-
+        playerCombat = GetComponent<PlayerCombat>();
         gameManager = FindFirstObjectByType<GameManagerScript>();
     }
 
 
     void Update()
     {
-        if (Time.timeScale == 0f) return;
-
-        if (transform.position.y < -10f)
-        {
-            gameManager.GameOver();
-            enabled = false; // disable player movement
-        }
-        Gamepad currentGamepad = InputSystem.devices.OfType<Gamepad>().FirstOrDefault();
-
-        moveDirection = GetOnmiInput(currentGamepad);
-
-        // Deadzone clamp
-        if (moveDirection.magnitude < 0.1f) moveDirection = Vector2.zero;
-
-        // --- Animator: update movement-based parameters ---
-        if (animator != null)
-        {
-            animator.SetFloat("InputX", moveDirection.x);
-            animator.SetFloat("InputY", moveDirection.y);
-
-            bool IsRunning = moveDirection.magnitude >= 0.1f;
-
-            if (IsRunning && !wasMoving)
-            {
-                // started moving
-                animator.SetBool("IsRunning", true);
-            }
-            else if (!IsRunning && wasMoving)
-            {
-                // stopped moving
-                animator.SetBool("IsRunning", false);
-                animator.SetFloat("LastInputX", lastNonZeroInput.x);
-                animator.SetFloat("LastInputY", lastNonZeroInput.y);
-            }
-
-            if (IsRunning)
-                lastNonZeroInput = moveDirection;
-
-            wasMoving = IsRunning;
-        }
-        // ---------------------------------------------------
-
-        float currentSpeed = speed;
-
-        if (IsRunHeld(currentGamepad))
-        {
-            currentSpeed *= runMultiplier;
-        }
-
-        if (!isGroundPounding)
-        {
-            rb.linearVelocity = moveDirection * currentSpeed;
-        }
-
-        //Before your normal jump check, include Ground Pound (only in air:)
-        if (!isGrounded && !isGroundPounding && IsGroundPoundPressed(currentGamepad))
-        {
-            GroundPound();
-            return; // Stop other movement this frame
-        }
-
         // Check for jump input. The condition now checks if we have jumps available
         if (IsJumpPressed(currentGamepad) && availableJumps > 0)
         {
             Jump();
         }
+
+        if (playerCombat.isShielded == true || playerCombat.isAttacking == true)
+        {
+            rb.linearVelocity = Vector2.zero; // Stop all movement immediately
+            return; // Skip movement if shielded or attacking
+        }
+        else if (playerCombat.isShielded == false && playerCombat.isAttacking == false)
+        {
+            HandleMovement();
+        }
+
+        moveDirection = GetOnmiInput(currentGamepad);
+        // --- Animator: update movement-based parameters ---
+        
     }
 
     private Vector2 GetOnmiInput(Gamepad currentGamepad)
@@ -138,7 +94,59 @@ public class PlayerMovement : MonoBehaviour
 
         return new Vector2(keyboardXInput, keyboardYInput);
     }
+    void HandleMovement()
+    {
 
+        if (animator != null)
+        {
+            animator.SetFloat("InputX", moveDirection.x);
+            animator.SetFloat("InputY", moveDirection.y);
+
+            IsRunning = moveDirection.magnitude >= 0.1f;
+
+            if (IsRunning && !wasMoving)
+            {
+                // started moving
+                animator.SetBool("IsRunning", true);
+            }
+            else if (!IsRunning && wasMoving)
+            {
+                // stopped moving
+                animator.SetBool("IsRunning", false);
+                animator.SetFloat("LastInputX", lastNonZeroInput.x);
+                animator.SetFloat("LastInputY", lastNonZeroInput.y);
+            }
+
+            if (IsRunning)
+                lastNonZeroInput = moveDirection;
+
+            wasMoving = IsRunning;
+        }
+        // ---------------------------------------------------
+
+        // Deadzone clamp
+        if (moveDirection.magnitude < 0.1f) moveDirection = Vector2.zero;
+
+
+        currentGamepad = InputSystem.devices.OfType<Gamepad>().FirstOrDefault();
+
+
+
+        float currentSpeed = speed;
+
+        if (IsRunHeld(currentGamepad))
+        {
+            currentSpeed *= runMultiplier;
+        }
+
+        if (!isGroundPounding)
+        {
+            rb.linearVelocity = moveDirection * currentSpeed;
+        }
+
+
+        //Before your normal jump check, include Ground Pound (only in air:)
+    }
     private void Jump()
     {
         // When jumping, we reset the vertical velocity before applying force

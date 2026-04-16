@@ -119,9 +119,12 @@ public class Health : MonoBehaviour
         if (invulTimer > 0 || isDead) return;
 
         // If this is the player and PlayerCombat reports shield active, block damage
-        if (isPlayer && playerCombat != null && playerCombat.IsShielded)
+        if (isPlayer && playerCombat != null && playerCombat.isShielded)
         {
             Debug.Log("[Player] Damage blocked by shield");
+            animator.SetTrigger("IsShielded");
+            animator.SetTrigger("IsHit"); /// Optional: trigger block animation if you have one
+            playerCombat.canShield = false; // Reset shield state after blocking
             return;
         }
 
@@ -135,7 +138,13 @@ public class Health : MonoBehaviour
         // Trigger hurt animation ONLY for enemies
         if (!isPlayer && animator != null)
         {
-            animator.SetTrigger("IsHurt");
+            animator.SetTrigger("IsHit");
+
+            // Notify Enemy to acknowledge hit boolean (safe call)
+            if (enemy != null)
+            {
+                enemy.AcknowledgeHit();
+            }
         }
 
         // Set player's IsHit bool so Animator transitions can respond
