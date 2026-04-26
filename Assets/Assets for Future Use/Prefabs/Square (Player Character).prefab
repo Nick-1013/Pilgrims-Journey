@@ -11,13 +11,13 @@ GameObject:
   - component: {fileID: 1417895104501332092}
   - component: {fileID: 5779758008944753504}
   - component: {fileID: 2975635064324764090}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: AttackPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1417895104501332092
 Transform:
   m_ObjectHideFlags: 0
@@ -27,7 +27,7 @@ Transform:
   m_GameObject: {fileID: 5287546778720094156}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: -1.58, z: 0}
+  m_LocalPosition: {x: 0, y: -0.66, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -122,7 +122,7 @@ GameObject:
   - component: {fileID: 8505306348075645548}
   - component: {fileID: 4079451985287405942}
   - component: {fileID: 1754123041981181273}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Square (Player Character)
   m_TagString: Player
   m_Icon: {fileID: 0}
@@ -190,8 +190,8 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_GlobalIlluminationMeshLod: 0
-  m_SortingLayerID: 0
-  m_SortingLayer: 0
+  m_SortingLayerID: 2147278087
+  m_SortingLayer: 1
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: -2118934485221375583, guid: fe9593a396a8ddf4bb3b1f923f06bf9f, type: 3}
@@ -257,9 +257,15 @@ MonoBehaviour:
   attackRange: 2.5
   attackDamage: 1
   attackPoint: {fileID: 1417895104501332092}
+  animator: {fileID: 1754123041981181273}
+  isAttacking: 0
   enemyLayer:
     serializedVersion: 2
     m_Bits: 64
+  isShielded: 0
+  canShield: 1
+  shieldCooldown: 2
+  shieldTimer: 0
 --- !u!50 &8505306348075645548
 Rigidbody2D:
   serializedVersion: 5
@@ -282,7 +288,7 @@ Rigidbody2D:
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 64
   m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 1

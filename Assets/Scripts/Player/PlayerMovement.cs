@@ -13,7 +13,7 @@ public class PlayerMovement : MonoBehaviour
 
     private Vector2 moveDirection;
     private Rigidbody2D rb;
-    private bool isGrounded;
+    private bool canJump = true;
     private int availableJumps; // Private variable to track jumps remaining
     private bool isGroundPounding;
     private Animator animator; // Reference to the Animator component
@@ -24,7 +24,7 @@ public class PlayerMovement : MonoBehaviour
     private bool wasMoving;
     Gamepad currentGamepad;
     private PlayerCombat playerCombat; // Reference to PlayerCombat (for shield checking)
-
+    public GameObject PlayerShadow; // Reference to the PlayerShadow prefab
 
     public LayerMask obstacles;
     void Start()
@@ -40,7 +40,7 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         // Check for jump input. The condition now checks if we have jumps available
-        if (IsJumpPressed(currentGamepad) && availableJumps > 0)
+        if (IsJumpPressed(currentGamepad) && availableJumps >= 0)
         {
             Jump();
         }
@@ -154,6 +154,21 @@ public class PlayerMovement : MonoBehaviour
         GetComponent<BoxCollider2D>().excludeLayers = obstacles;
 
         availableJumps--; // Decrease the number of available jumps
+
+        if (availableJumps > 1)
+        {
+            Instantiate(PlayerShadow, transform.position, Quaternion.identity);
+            animator.SetTrigger("IsJumping"); // Trigger jump animation
+
+        }
+
+        if (availableJumps >= 0) 
+        {
+            canJump = false; // No more jumps allowed until we land again
+            animator.SetTrigger("IsJumping"); // Trigger jump animation
+        }
+
+        //if you  reach jump 1, access jump 2, and both can do a ground pound, but then in Jump 2, canJump is considered false until colliding with shadow to reset jumps.
     }
 
     private void GroundPound()
@@ -200,7 +215,7 @@ public class PlayerMovement : MonoBehaviour
     {
         // When the player lands on the ground, reset the available jumps
         // to the maximum allowed value.
-        if (collision.gameObject.CompareTag("Ground")) // Ensure your ground object has the "Ground" tag
+        if (collision.gameObject.CompareTag("Shadow")) // Ensure your ground object has the "Shadow" tag
         {
             // The following "if" statement gives the Ground Pound impact some bounce to it
             if (isGroundPounding)
@@ -209,7 +224,7 @@ public class PlayerMovement : MonoBehaviour
             }
 
             availableJumps = maxJumps;
-            isGrounded = true; // Retained for ground detection logic, though less critical now
+            canJump = true; // Retained for ground detection logic, though less critical now
             isGroundPounding = false; // Reset ground pound
         }
     }
@@ -217,9 +232,9 @@ public class PlayerMovement : MonoBehaviour
     // Optional: Add OnCollisionExit2D to update isGrounded status when leaving the ground
     void OnCollisionExit2D(Collision2D collision)
     {
-        if (collision.gameObject.CompareTag("Ground"))
+        if (collision.gameObject.CompareTag("Shadow"))
         {
-            isGrounded = false;
+            canJump = false;
         }
     }
 }
