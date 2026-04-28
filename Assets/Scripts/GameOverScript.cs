@@ -14,7 +14,7 @@ public class GameOverScript : MonoBehaviour
 
     public void RestartButton()
     {
-        SceneManager.LoadScene("Game");
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     public void MainMenuButton()

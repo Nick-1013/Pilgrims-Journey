@@ -4,242 +4,236 @@ using System.Linq;
 
 public class PlayerMovement : MonoBehaviour
 {
-    private GameManagerScript gameManager; // Helps communicate with Game Manager script for pause menu/gameover screen
-    public float speed = 5.0f; //How fast the player character is at normal movement
-    public float runMultiplier = 1.75f; // How much faster running is
-    public float jumpForce = 10.0f;
-    public int maxJumps = 2; // Public variable to set the total number of jumps allowed
+    private GameManagerScript gameManager;
+
+    public float speed = 5.0f;
+    public float runMultiplier = 1.75f;
+    public int maxJumps = 2;
     public float groundPoundForce = 25f;
+
+    [Header("Movement Smoothing")]
+    public float movementSmoothing = 10f;
 
     private Vector2 moveDirection;
     private Rigidbody2D rb;
-    private bool canJump = true;
-    private int availableJumps; // Private variable to track jumps remaining
-    private bool isGroundPounding;
-    private Animator animator; // Reference to the Animator component
-    bool IsRunning = false;
+    private int availableJumps;
 
-    // Animator movement tracking
+    private Animator animator;
+    private PlayerCombat playerCombat;
+
+    public enum PlayerState
+    {
+        Idle,
+        Move,
+        Jump,
+        GroundPound,
+        Busy
+    }
+
+    public PlayerState currentState;
+
+    public GameObject PlayerShadow;
+    private GameObject activeShadow;
+
     private Vector2 lastNonZeroInput;
-    private bool wasMoving;
-    Gamepad currentGamepad;
-    private PlayerCombat playerCombat; // Reference to PlayerCombat (for shield checking)
-    public GameObject PlayerShadow; // Reference to the PlayerShadow prefab
+    private bool isRunning;
 
-    public LayerMask obstacles;
+    private Vector2 currentVelocity;
+
+    Gamepad currentGamepad;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
-        animator = GetComponent<Animator>(); // Get the Animator component
-        availableJumps = maxJumps; // Initialize available jumps on start
+        animator = GetComponent<Animator>();
         playerCombat = GetComponent<PlayerCombat>();
         gameManager = FindFirstObjectByType<GameManagerScript>();
-    }
 
+        availableJumps = maxJumps;
+        currentState = PlayerState.Idle;
+    }
 
     void Update()
     {
-        // Check for jump input. The condition now checks if we have jumps available
-        if (IsJumpPressed(currentGamepad) && availableJumps >= 0)
+        currentGamepad = InputSystem.devices.OfType<Gamepad>().FirstOrDefault();
+
+        moveDirection = GetOnmiInput(currentGamepad);
+
+        if (playerCombat.isShielded || playerCombat.isAttacking)
+        {
+            SetState(PlayerState.Busy);
+            rb.linearVelocity = Vector2.zero;
+            return;
+        }
+
+        if (IsJumpPressed(currentGamepad) && availableJumps > 0 && currentState != PlayerState.GroundPound)
         {
             Jump();
         }
 
-        if (playerCombat.isShielded == true || playerCombat.isAttacking == true)
+        if (IsGroundPoundPressed(currentGamepad) && currentState == PlayerState.Jump)
         {
-            rb.linearVelocity = Vector2.zero; // Stop all movement immediately
-            return; // Skip movement if shielded or attacking
-        }
-        else if (playerCombat.isShielded == false && playerCombat.isAttacking == false)
-        {
-            HandleMovement();
+            GroundPound();
         }
 
-        moveDirection = GetOnmiInput(currentGamepad);
-        // --- Animator: update movement-based parameters ---
-        
+        HandleMovement();
+        UpdateState();
     }
 
-    private Vector2 GetOnmiInput(Gamepad currentGamepad)
+    void UpdateState()
     {
-        float gamepadXInput = 0f;
-        float gamepadYInput = 0f;
-        float keyboardXInput = 0f;
-        float keyboardYInput = 0f;
+        if (currentState == PlayerState.Jump || currentState == PlayerState.GroundPound)
+            return;
 
-        // Gamepad
-        if (currentGamepad != null)
-        {
-            gamepadXInput = currentGamepad.leftStick.x.ReadValue();
-            gamepadYInput = currentGamepad.leftStick.y.ReadValue();
-        }
-
-        // Keyboard (A/D + Left/Right Arrows)
-
-        if (Keyboard.current != null)
-        {
-            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) keyboardYInput += 1f;
-
-            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) keyboardXInput -= 1f;
-
-            if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) keyboardYInput -= 1f;
-
-            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) keyboardXInput += 1f;
-        }
-
-        // Prefer gamepad if active
-        if (Mathf.Abs(gamepadXInput) > 0.1f || Mathf.Abs(gamepadYInput) > 0.1f)
-            return new Vector2(gamepadXInput, gamepadYInput);
-
-
-        return new Vector2(keyboardXInput, keyboardYInput);
+        SetState(moveDirection.sqrMagnitude > 0.01f ? PlayerState.Move : PlayerState.Idle);
     }
+
+    void SetState(PlayerState newState)
+    {
+        if (currentState == newState) return;
+
+        currentState = newState;
+
+        if (animator != null)
+            animator.SetBool("IsRunning", newState == PlayerState.Move);
+    }
+
     void HandleMovement()
     {
+        if (moveDirection.sqrMagnitude < 0.01f)
+            moveDirection = Vector2.zero;
+
+        float currentSpeed = speed;
+
+        if (IsRunHeld(currentGamepad))
+            currentSpeed *= runMultiplier;
+
+        if (currentState != PlayerState.Busy)
+        {
+            Vector2 targetVelocity = moveDirection * currentSpeed;
+
+            currentVelocity = Vector2.Lerp(
+                currentVelocity,
+                targetVelocity,
+                movementSmoothing * Time.deltaTime
+            );
+
+            rb.linearVelocity = currentVelocity;
+
+            // WALK SOUND (only when actually moving)
+            if (moveDirection.sqrMagnitude > 0.01f)
+                AudioManager.Instance?.PlayWalk();
+        }
 
         if (animator != null)
         {
             animator.SetFloat("InputX", moveDirection.x);
             animator.SetFloat("InputY", moveDirection.y);
 
-            IsRunning = moveDirection.magnitude >= 0.1f;
+            isRunning = moveDirection.sqrMagnitude > 0.01f;
 
-            if (IsRunning && !wasMoving)
+            if (isRunning)
+                lastNonZeroInput = moveDirection;
+            else
             {
-                // started moving
-                animator.SetBool("IsRunning", true);
-            }
-            else if (!IsRunning && wasMoving)
-            {
-                // stopped moving
-                animator.SetBool("IsRunning", false);
                 animator.SetFloat("LastInputX", lastNonZeroInput.x);
                 animator.SetFloat("LastInputY", lastNonZeroInput.y);
             }
-
-            if (IsRunning)
-                lastNonZeroInput = moveDirection;
-
-            wasMoving = IsRunning;
         }
-        // ---------------------------------------------------
-
-        // Deadzone clamp
-        if (moveDirection.magnitude < 0.1f) moveDirection = Vector2.zero;
-
-
-        currentGamepad = InputSystem.devices.OfType<Gamepad>().FirstOrDefault();
-
-
-
-        float currentSpeed = speed;
-
-        if (IsRunHeld(currentGamepad))
-        {
-            currentSpeed *= runMultiplier;
-        }
-
-        if (!isGroundPounding)
-        {
-            rb.linearVelocity = moveDirection * currentSpeed;
-        }
-
-
-        //Before your normal jump check, include Ground Pound (only in air:)
     }
+
     private void Jump()
     {
-        // When jumping, we reset the vertical velocity before applying force
-        // This ensures the second jump always has the same force, regardless of gravity
-        GetComponent<BoxCollider2D>().excludeLayers = obstacles;
+        availableJumps--;
+        SetState(PlayerState.Jump);
 
-        availableJumps--; // Decrease the number of available jumps
+        if (activeShadow == null)
+            activeShadow = Instantiate(PlayerShadow, transform.position, Quaternion.identity);
 
-        if (availableJumps > 1)
+        if (animator != null)
         {
-            Instantiate(PlayerShadow, transform.position, Quaternion.identity);
-            animator.SetTrigger("IsJumping"); // Trigger jump animation
-
+            animator.ResetTrigger("IsJumping");
+            animator.SetTrigger("IsJumping");
         }
-
-        if (availableJumps >= 0) 
-        {
-            canJump = false; // No more jumps allowed until we land again
-            animator.SetTrigger("IsJumping"); // Trigger jump animation
-        }
-
-        //if you  reach jump 1, access jump 2, and both can do a ground pound, but then in Jump 2, canJump is considered false until colliding with shadow to reset jumps.
     }
 
     private void GroundPound()
     {
-        isGroundPounding = true;
+        SetState(PlayerState.GroundPound);
 
-        // Cancel current motion
         rb.linearVelocity = Vector2.zero;
-
-        // Slam downward
         rb.AddForce(Vector2.down * groundPoundForce, ForceMode2D.Impulse);
+    }
+
+    public void Land()
+    {
+        availableJumps = maxJumps;
+
+        if (activeShadow != null)
+        {
+            transform.position = activeShadow.transform.position;
+            Destroy(activeShadow);
+            activeShadow = null;
+        }
+
+        SetState(PlayerState.Idle);
+    }
+
+    // CALL THIS WHEN PLAYER HITS ENEMY
+    public void PlayAttackSound()
+    {
+        AudioManager.Instance?.PlayAttack();
+    }
+
+    // CALL THIS FROM Health.TakeDamage()
+    public void PlayHurtSound()
+    {
+        AudioManager.Instance?.PlayHurt();
+    }
+
+    private Vector2 GetOnmiInput(Gamepad currentGamepad)
+    {
+        float gamepadX = 0f, gamepadY = 0f;
+        float keyboardX = 0f, keyboardY = 0f;
+
+        if (currentGamepad != null)
+        {
+            gamepadX = currentGamepad.leftStick.x.ReadValue();
+            gamepadY = currentGamepad.leftStick.y.ReadValue();
+        }
+
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) keyboardY += 1f;
+            if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) keyboardY -= 1f;
+            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) keyboardX -= 1f;
+            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) keyboardX += 1f;
+        }
+
+        return (Mathf.Abs(gamepadX) > 0.1f || Mathf.Abs(gamepadY) > 0.1f)
+            ? new Vector2(gamepadX, gamepadY)
+            : new Vector2(keyboardX, keyboardY);
     }
 
     private bool IsJumpPressed(Gamepad currentGamepad)
     {
-        bool gamepadJump = currentGamepad != null && currentGamepad.aButton.wasPressedThisFrame;
-        bool keyboardJump = Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame;
-        return gamepadJump || keyboardJump;
+        return (currentGamepad != null && currentGamepad.aButton.wasPressedThisFrame) ||
+               (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame);
     }
 
     private bool IsGroundPoundPressed(Gamepad currentGamepad)
     {
-        bool gamepadPound =
-            currentGamepad != null && currentGamepad.leftStick.y.ReadValue() < -0.5f && currentGamepad.aButton.wasPressedThisFrame;
-
-        bool keyboardPound =
-            Keyboard.current != null && (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) && Keyboard.current.spaceKey.wasPressedThisFrame;
-
-        return gamepadPound || keyboardPound;
+        return (currentGamepad != null && currentGamepad.leftStick.y.ReadValue() < -0.5f && currentGamepad.aButton.wasPressedThisFrame) ||
+               (Keyboard.current != null && Keyboard.current.sKey.isPressed && Keyboard.current.spaceKey.wasPressedThisFrame);
     }
 
     private bool IsRunHeld(Gamepad currentGamepad)
     {
-        bool gamepadRun =
-            currentGamepad != null && (currentGamepad.leftStickButton.isPressed || currentGamepad.rightTrigger.ReadValue() > 0.1f);
-
-        bool keyboardRun =
-            Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed;
-
-        return gamepadRun || keyboardRun;
-    }
-    // New Unity function to detect collisions with the ground
-    void OnCollisionEnter2D(Collision2D collision)
-    {
-        // When the player lands on the ground, reset the available jumps
-        // to the maximum allowed value.
-        if (collision.gameObject.CompareTag("Shadow")) // Ensure your ground object has the "Shadow" tag
-        {
-            // The following "if" statement gives the Ground Pound impact some bounce to it
-            if (isGroundPounding)
-            {
-                rb.AddForce(Vector2.up * 2f, ForceMode2D.Impulse);
-            }
-
-            availableJumps = maxJumps;
-            canJump = true; // Retained for ground detection logic, though less critical now
-            isGroundPounding = false; // Reset ground pound
-        }
-    }
-
-    // Optional: Add OnCollisionExit2D to update isGrounded status when leaving the ground
-    void OnCollisionExit2D(Collision2D collision)
-    {
-        if (collision.gameObject.CompareTag("Shadow"))
-        {
-            canJump = false;
-        }
+        return (currentGamepad != null &&
+               (currentGamepad.leftStickButton.isPressed || currentGamepad.rightTrigger.ReadValue() > 0.1f)) ||
+               (Keyboard.current != null && Keyboard.current.leftShiftKey.isPressed);
     }
 }
-
-
 
 // ***************  THIS IS THE END OF THE CODE  ************************
 
